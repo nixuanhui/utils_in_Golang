@@ -30,11 +30,17 @@ func NewSchedule() Schedule {
 }
 
 func (tw *timeWheel) SetTickDuration(td time.Duration) *timeWheel {
+	if td <= 0 {
+		return tw
+	}
 	tw.tickDuration = td
 	return tw
 }
 
 func (tw *timeWheel) SetTicksPerWheel(count int64) *timeWheel {
+	if count <= 0 {
+		return tw
+	}
 	tw.ticksPerWheel = count
 	return tw
 }
@@ -65,7 +71,7 @@ func (tw *timeWheel) Run()  {
 }
 
 func (tw *timeWheel) StopRunning() {
-	time.Sleep(100*time.Microsecond)
+	time.Sleep(10*time.Microsecond)
 	tw.stopTick()
 }
 
