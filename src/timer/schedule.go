@@ -3,6 +3,7 @@ package timer
 import (
 	"time"
 	"sync"
+	"fmt"
 )
 
 type Schedule interface {
@@ -14,7 +15,7 @@ type Schedule interface {
 	SetTicksPerWheel(count int64) *timeWheel
 }
 
-// default
+// default schedule
 func NewSchedule() Schedule {
 	tw := &timeWheel{
 		tickDuration: 1*time.Second,
@@ -22,6 +23,7 @@ func NewSchedule() Schedule {
 		toDoChan:make(chan []func(), 10),
 		task: make(map[int64][]func()),
 		taskLock: &sync.RWMutex{},
+		stopSignal:make(chan struct{}, 1),
 	}
 
 	return tw
@@ -51,6 +53,7 @@ type timeWheel struct {
 	task          map[int64][]func()
 	taskLock      *sync.RWMutex
 	toDoChan      chan []func()
+	stopSignal    chan struct{}
 }
 
 func (tw *timeWheel) Run()  {
@@ -79,19 +82,26 @@ func (tw *timeWheel) startTick() {
 	}
 
 	tw.ticker = time.NewTicker(tw.tickDuration)
+	fmt.Println("ticking start")
 
 	for {
 		select {
 		case <-tw.ticker.C:
 			tw.pointer = tw.pointer % tw.ticksPerWheel + 1
 			tw.toDoChan <- tw.GetTasks(tw.pointer)
+		case <-tw.stopSignal:
+			fmt.Println("ticking stop")
+			return
 		}
 	}
 }
 
 func (tw *timeWheel) stopTick()  {
 	if tw.ticker != nil {
+		//停 ticker
 		tw.ticker.Stop()
+		//停 goroutine.
+		tw.stopSignal <- struct{}{}
 	}
 }
 
@@ -113,5 +123,5 @@ func (tw *timeWheel) GetTasks(timing int64) []func() {
 
 func NewRealTimeCalendar() Schedule {
 	schedule := NewSchedule()
-	return schedule.SetTicksPerWheel(365)
+	return schedule.SetTicksPerWheel(365*24)
 }
