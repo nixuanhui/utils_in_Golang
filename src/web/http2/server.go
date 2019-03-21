@@ -1,4 +1,4 @@
-package go_http
+package http2
 
 import (
 	"net/http"

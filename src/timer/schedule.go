@@ -8,8 +8,6 @@ import (
 type Schedule interface {
 	Run()
 	StopRunning()
-	startTick()
-	stopTick()
 	AddTask(task func(), timing int64)
 	GetTasks(timing int64) []func()
 	SetTickDuration(td time.Duration) *timeWheel
