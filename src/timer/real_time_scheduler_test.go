@@ -7,5 +7,5 @@ import (
 
 func TestNewRealTimeCalendarScheduler(t *testing.T) {
 	rts := NewRealTimeCalendarScheduler()
-	fmt.Println(rts.pointer)
+	fmt.Println(rts.(*realTimeCalendarSchedule).pointer)
 }

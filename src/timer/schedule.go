@@ -43,6 +43,8 @@ func (tw *timeWheel) SetTicksPerWheel(count int64) *timeWheel {
 }
 
 type timeWheel struct {
+	running bool
+
 	ticker        *time.Ticker
 	tickDuration  time.Duration
 	ticksPerWheel int64
@@ -55,19 +57,6 @@ type timeWheel struct {
 
 func (tw *timeWheel) Run()  {
 	tw.startTick()
-
-	go func() {
-		for {
-			select {
-			case <-tw.ticker.C:
-				tw.pointer = tw.pointer % tw.ticksPerWheel + 1
-				tw.toDoChan <- tw.GetTasks(tw.pointer)
-			case <-tw.stopSignal:
-				fmt.Println("schedule stop")
-				return
-			}
-		}
-	}()
 
 	var task []func()
 	for{
@@ -83,8 +72,12 @@ func (tw *timeWheel) Run()  {
 }
 
 func (tw *timeWheel) StopRunning() {
+	tw.running = false
+
 	time.Sleep(10*time.Microsecond)
+
 	tw.stopTick()
+
 	//停 goroutine.
 	tw.stopSignal <- struct{}{}
 }
@@ -96,6 +89,21 @@ func (tw *timeWheel) startTick() {
 
 	tw.ticker = time.NewTicker(tw.tickDuration)
 	fmt.Println("ticking start")
+
+	go func() {
+		for {
+			select {
+			case <-tw.ticker.C:
+				tw.pointer = tw.pointer % tw.ticksPerWheel + 1
+				if tw.running {
+					tw.toDoChan <- tw.GetTasks(tw.pointer)
+				}
+			case <-tw.stopSignal:
+				fmt.Println("schedule stop")
+				return
+			}
+		}
+	}()
 }
 
 func (tw *timeWheel) stopTick()  {

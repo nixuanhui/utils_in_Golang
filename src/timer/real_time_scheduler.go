@@ -21,10 +21,14 @@ func NewRealTimeCalendarScheduler() Schedule {
 }
 
 
-func (rtcs *realTimeCalendarSchedule) Run() {
+func (rtcs realTimeCalendarSchedule) Run() {
 	rtcs.addtask(rtcs.ticksPerWheel-1, func() {
+		//sleep 1秒，以防止程序还未进入到下一年，导致time.Now()不符合预期
+		time.Sleep(1 * time.Second)
 		setTicksPerWheel(rtcs.timeWheel)
 	})
+
+	rtcs.timeWheel.Run()
 }
 
 func setTicksPerWheel(schedule *timeWheel)  {
