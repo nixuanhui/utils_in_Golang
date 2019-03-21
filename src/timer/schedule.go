@@ -15,12 +15,13 @@ type Schedule interface {
 // default schedule
 func NewSchedule() *timeWheel {
 	tw := &timeWheel{
-		tickDuration: 1*time.Second,
+		running:       false,
+		tickDuration:  1 * time.Second,
 		ticksPerWheel: 60,
-		toDoChan:make(chan []func(), 10),
-		task: make(map[int64][]func()),
-		taskLock: &sync.RWMutex{},
-		stopSignal:make(chan struct{}, 1),
+		toDoChan:      make(chan []func(), 10),
+		task:          make(map[int64][]func()),
+		taskLock:      &sync.RWMutex{},
+		stopSignal:    make(chan struct{}, 1),
 	}
 
 	return tw
@@ -55,13 +56,13 @@ type timeWheel struct {
 	stopSignal    chan struct{}
 }
 
-func (tw *timeWheel) Run()  {
+func (tw *timeWheel) Run() {
 	tw.startTick()
 
 	var task []func()
-	for{
+	for {
 		select {
-		case task = <- tw.toDoChan:
+		case task = <-tw.toDoChan:
 			for _, fc := range task {
 				go func(f func()) {
 					f()
@@ -74,7 +75,7 @@ func (tw *timeWheel) Run()  {
 func (tw *timeWheel) StopRunning() {
 	tw.running = false
 
-	time.Sleep(10*time.Microsecond)
+	time.Sleep(10 * time.Microsecond)
 
 	tw.stopTick()
 
@@ -106,7 +107,7 @@ func (tw *timeWheel) startTick() {
 	}()
 }
 
-func (tw *timeWheel) stopTick()  {
+func (tw *timeWheel) stopTick() {
 	if tw.ticker != nil {
 		//停 ticker
 		tw.ticker.Stop()
@@ -129,5 +130,3 @@ func (tw *timeWheel) GetTasks(timing int64) []func() {
 	defer tw.taskLock.RUnlock()
 	return tw.task[timing]
 }
-
-
