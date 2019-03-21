@@ -9,14 +9,11 @@ import (
 type Schedule interface {
 	Run()
 	StopRunning()
-	AddTask(task func(), timing int64)
-	GetTasks(timing int64) []func()
-	SetTickDuration(td time.Duration) *timeWheel
-	SetTicksPerWheel(count int64) *timeWheel
+	AddTask(action func(), timing int64)
 }
 
 // default schedule
-func NewSchedule() Schedule {
+func NewSchedule() *timeWheel {
 	tw := &timeWheel{
 		tickDuration: 1*time.Second,
 		ticksPerWheel: 60,
@@ -57,7 +54,21 @@ type timeWheel struct {
 }
 
 func (tw *timeWheel) Run()  {
-	go tw.startTick()
+	tw.startTick()
+
+	go func() {
+		for {
+			select {
+			case <-tw.ticker.C:
+				tw.pointer = tw.pointer % tw.ticksPerWheel + 1
+				tw.toDoChan <- tw.GetTasks(tw.pointer)
+			case <-tw.stopSignal:
+				fmt.Println("schedule stop")
+				return
+			}
+		}
+	}()
+
 	var task []func()
 	for{
 		select {
@@ -74,6 +85,8 @@ func (tw *timeWheel) Run()  {
 func (tw *timeWheel) StopRunning() {
 	time.Sleep(10*time.Microsecond)
 	tw.stopTick()
+	//停 goroutine.
+	tw.stopSignal <- struct{}{}
 }
 
 func (tw *timeWheel) startTick() {
@@ -83,25 +96,13 @@ func (tw *timeWheel) startTick() {
 
 	tw.ticker = time.NewTicker(tw.tickDuration)
 	fmt.Println("ticking start")
-
-	for {
-		select {
-		case <-tw.ticker.C:
-			tw.pointer = tw.pointer % tw.ticksPerWheel + 1
-			tw.toDoChan <- tw.GetTasks(tw.pointer)
-		case <-tw.stopSignal:
-			fmt.Println("ticking stop")
-			return
-		}
-	}
 }
 
 func (tw *timeWheel) stopTick()  {
 	if tw.ticker != nil {
 		//停 ticker
 		tw.ticker.Stop()
-		//停 goroutine.
-		tw.stopSignal <- struct{}{}
+		fmt.Println("ticking stop")
 	}
 }
 
@@ -121,7 +122,4 @@ func (tw *timeWheel) GetTasks(timing int64) []func() {
 	return tw.task[timing]
 }
 
-func NewRealTimeCalendar() Schedule {
-	schedule := NewSchedule()
-	return schedule.SetTicksPerWheel(365*24)
-}
+
